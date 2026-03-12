@@ -1,0 +1,330 @@
+% Report Module 3 – Network Scanning, Attack Classification, and Vulnerability Analysis
+% CS 475: Introduction to Computer Security
+% Mária Nyolcas
+% March 12th 2026
+
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{setspace}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{parskip}
+\usepackage{titlesec}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{microtype}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage{xcolor}
+
+\setstretch{1.15}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=blue,
+    citecolor=black,
+}
+
+\titleformat{\section}{\large\bfseries}{}{0em}{}[\titlerule]
+\titleformat{\subsection}{\normalsize\bfseries}{}{0em}{}
+
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\small CS 475 – Mária Nyolcas}
+\rhead{\small Week 3: Network Scanning \& Vulnerability Analysis}
+\cfoot{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\begin{document}
+%  TITLE
+
+\begin{center}
+  {\Large\bfseries Report Module 3}\\[4pt]
+  {\large Network Scanning, Attack Classification, and Vulnerability Analysis}\\[6pt]
+  {\normalsize CS 475: Introduction to Computer Security}\\[2pt]
+  {\normalsize Mária Nyolcas \quad|\quad Prof: Asen Nikolov Grozdanov}\\[2pt]
+  {\normalsize March 2026}
+\end{center}
+
+\vspace{4pt}
+\noindent\rule{\linewidth}{0.6pt}
+\vspace{2pt}
+
+\noindent\textbf{Abstract.}
+This report documents a controlled network scanning and vulnerability assessment exercise
+conducted entirely within an isolated virtual lab.  A Metasploitable~2 target was
+scanned with Nmap using two complementary scan types (SYN and version-detection), three
+high-risk attack scenarios were classified against the MITRE ATT\&CK Enterprise framework,
+and the top vulnerabilities were identified with OpenVAS, scored with CVSS\,v3.1, and
+accompanied by concrete remediation proposals.  Reflections connect the practical findings
+to the Week~2 access-control models and consider how defenders can detect the scans performed.
+
+
+\section{Introduction and Environment Description}
+
+\subsection{Objectives}
+The goals of this module are to: (i)~apply host discovery and port-scanning techniques in
+a safe lab setting; (ii)~interpret scan output in terms of attack surface; (iii)~classify
+realistic attack scenarios using an established taxonomy; and (iv)~perform a basic
+vulnerability assessment, prioritise findings by CVSS score, and propose remediations.
+
+\subsection{Lab Topology}
+The lab runs on a single Windows host with Hyper-V, hosting two VMs on an isolated
+\texttt{host-only} network (\texttt{192.168.56.0/24}) with no routing to the internet
+or any production network.
+
+\begin{center}
+\small
+\begin{tabular}{lllll}
+\toprule
+Role & OS & IP & Key services & Notes \\
+\midrule
+Attacker & Kali Linux 2024.3 & 192.168.56.100 & Nmap 7.95, OpenVAS 22 & fully updated \\
+Target   & Metasploitable 2  & 192.168.56.101 & many intentional vulns & frozen at release \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The two machines communicate only over the host-only adapter; no traffic crosses to
+external networks during any exercise.
+
+\subsection{Tool Selection}
+\textbf{Nmap} was chosen for scanning because its open-source code and exhaustive
+documentation make output easy to interpret and reproduce; it also supports both the
+half-open SYN mode (useful for stealth comparison) and the \texttt{-sV} version-detection
+mode needed for banner grabbing.  \textbf{OpenVAS} (Greenbone Community Edition) was
+selected for vulnerability assessment because it is free, actively maintained, and maps
+findings directly to CVE identifiers and CVSS scores.  All tool interactions were also
+wrapped in custom Python scripts (\texttt{scanner.py}, \texttt{vuln\_assessment.py},
+\texttt{attack\_classification.py}) so that parsing and analysis logic is transparent and
+reproducible --- following the same philosophy as the Week~2 model simulations.
+
+\section{Scanning Results and Analysis}
+
+\subsection{Host Discovery}
+A ping sweep (\texttt{nmap -sn 192.168.56.0/24}) confirmed two live hosts:
+\texttt{192.168.56.100} (attacker) and \texttt{192.168.56.101} (target).  ICMP echo
+replies were not filtered, which is expected on a host-only adapter with no firewall
+policy applied.
+
+\subsection{Port Scan Results}
+
+\textbf{Scan~1 – SYN scan} (\texttt{nmap -sS -p- --open -T4}): sends a TCP SYN, waits
+for SYN-ACK (open) or RST (closed), then sends RST to abort the handshake without
+completing it.  This is faster and generates less log noise than a full connect.
+
+\textbf{Scan~2 – Version scan} (\texttt{nmap -sV}) on the 12~most interesting ports:
+completes the TCP handshake and reads service banners, trading stealth for detail.
+
+\vspace{6pt}
+\noindent\small
+\begin{tabularx}{\linewidth}{>{\ttfamily}l l l >{\raggedright\arraybackslash}X}
+\toprule
+\normalfont Port & State & Service & Banner / version (from \texttt{-sV}) \\
+\midrule
+21/tcp   & open & ftp          & vsftpd 2.3.4 \\
+22/tcp   & open & ssh          & OpenSSH 4.7p1 Debian 8ubuntu1 \\
+23/tcp   & open & telnet       & Linux telnetd \\
+25/tcp   & open & smtp         & Postfix smtpd \\
+80/tcp   & open & http         & Apache httpd 2.2.8 (Ubuntu DAV/2) \\
+111/tcp  & open & rpcbind      & 2 (RPC \#100000) \\
+139/tcp  & open & netbios-ssn  & Samba smbd 3.0.20-Debian \\
+445/tcp  & open & microsoft-ds & Samba smbd 3.0.20-Debian \\
+3306/tcp & open & mysql        & MySQL 5.0.51a-3ubuntu5 \\
+5432/tcp & open & postgresql   & PostgreSQL 8.3.0–8.3.7 \\
+6667/tcp & open & irc          & UnrealIRCd 3.2.8.1 \\
+8180/tcp & open & http         & Apache Tomcat/Coyote JSP 1.1 \\
+\bottomrule
+\end{tabularx}
+\normalsize
+
+\vspace{6pt}
+\noindent\textbf{Analysis.}
+The target exposes an unusually large attack surface: 12~ports open on a machine that
+should in practice serve only one or two functions.  Several findings stand out:
+
+\begin{itemize}[nosep]
+  \item \textbf{Legacy protocols}: Telnet (port~23) and FTP (port~21) transmit
+        credentials in cleartext --- a passive network tap captures them without
+        any active exploit.
+  \item \textbf{Outdated versions}: vsftpd~2.3.4 is known to carry a backdoor
+        (CVE-2011-2523); Samba~3.0.20 has a code-injection flaw (CVE-2007-2447);
+        Apache~2.2.8 and PHP~5.2 are long past end-of-life.
+  \item \textbf{Filtered vs.\ closed}: No ports were returned as \textit{filtered}
+        in this environment, meaning no firewall drops packets silently.  In a
+        production setting, filtered ports indicate a firewall rule rather than an
+        absent service --- useful for mapping defensive perimeter.
+  \item \textbf{Detection risk}: The SYN scan is less likely to appear in
+        application logs (the handshake is never completed), but it is still
+        visible to network IDS tools monitoring for RST floods or SYN without ACK.
+        The version scan always completes the handshake and leaves entries in
+        every service's connection log.
+\end{itemize}
+
+\section{Attack Classification and Vulnerability Findings}
+
+\subsection{MITRE ATT\&CK Mapping}
+
+Three attack scenarios were selected to represent the most realistic threats to the
+discovered services.  Each is classified by ATT\&CK tactic (the \emph{why}) and technique
+(the \emph{how}), and additionally mapped to STRIDE to show the security property violated.
+
+\vspace{4pt}
+\small
+\begin{tabularx}{\linewidth}{l >{\raggedright}p{3.2cm} >{\ttfamily}l >{\ttfamily}l >{\raggedright\arraybackslash}X}
+\toprule
+\# & Service & Tactic (ID) & Technique & STRIDE \\
+\midrule
+1 & vsftpd 2.3.4 (21) &
+  Initial Access\newline TA0001 & T1190 &
+  Elevation of Privilege, Information Disclosure \\
+2 & Samba 3.0.20 (445) &
+  Execution\newline TA0002 & T1059.004 &
+  Tampering, Elevation of Privilege \\
+3 & OpenSSH / Debian key (22) &
+  Credential Access\newline TA0006 & T1110.002 &
+  Spoofing, Elevation of Privilege \\
+\bottomrule
+\end{tabularx}
+\normalsize
+
+\vspace{6pt}
+\noindent\textbf{Scenario 1 --- vsftpd Backdoor (TA0001 / T1190).}
+The compromised 2.3.4 release opens a root shell on port 6200 for any connection whose
+username contains `\texttt{:)}'.  This is classified under \emph{Initial Access} because
+the attacker's primary objective at this stage is gaining a first foothold.  T1190
+(Exploit Public-Facing Application) accurately captures the mechanism: a network-exposed
+service is targeted using a publicly known vulnerability.
+
+\noindent\textbf{Scenario 2 --- Samba Command Injection (TA0002 / T1059.004).}
+The \texttt{username~map~script} directive is evaluated by \texttt{/bin/sh} without
+sanitisation.  An attacker injects shell metacharacters to obtain a reverse shell.
+The primary ATT\&CK tactic is \emph{Execution} because the adversary's immediate gain
+is code running on the victim; T1059.004 (Unix Shell) names the specific interpreter.
+
+\noindent\textbf{Scenario 3 --- Predictable Debian SSH Keys (TA0006 / T1110.002).}
+CVE-2008-0166 reduced the PRNG seed space on Debian to 32,767 values.  Iterating through
+a pre-computed key dictionary to authenticate is classified under \emph{Credential Access}
+/ Brute Force (T1110), sub-technique T1110.002, because the attacker is effectively
+exhausting a small credential space rather than guessing single passwords.
+
+\subsection{Top Vulnerability Findings}
+
+\small
+\begin{tabularx}{\linewidth}{>{\ttfamily}l r l >{\raggedright\arraybackslash}X}
+\toprule
+\normalfont CVE & CVSS\,v3.1 & Severity & Title \\
+\midrule
+CVE-2011-2523 & 9.8 & CRITICAL & vsftpd 2.3.4 Backdoor RCE \\
+CVE-2007-2447 & 9.8 & CRITICAL & Samba Username Map Script RCE \\
+CVE-2012-1823 & 9.8 & CRITICAL & PHP CGI Argument Injection RCE \\
+CVE-2008-0166 & 7.8 & HIGH     & Debian Predictable OpenSSL PRNG \\
+CVE-2004-2761 & 5.3 & MEDIUM   & MD5 Collision in SSL Certificates \\
+\bottomrule
+\end{tabularx}
+\normalsize
+
+\vspace{4pt}
+The three CRITICAL findings share the same CVSS base vector
+\texttt{AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H}: network-reachable, low complexity,
+no privileges or user interaction required, and full compromise of confidentiality,
+integrity, and availability.  This means any host on the same network (or the internet,
+if exposed) can obtain root access with no preconditions --- the highest-possible risk.
+CVE-2008-0166 scores 7.8 because it requires local access or prior key enumeration.
+
+
+\section{Remediation Proposals and Personal Reflection}
+
+\subsection{Remediation}
+
+\noindent\textbf{CVE-2011-2523 --- vsftpd 2.3.4 Backdoor.}
+Replace vsftpd immediately with version 3.0.5 or later via the distribution package
+manager.  If FTP is not operationally required, remove the service and switch all
+file-transfer workflows to SFTP (which is already provided by the OpenSSH daemon on the
+same host).  Block port~21/tcp at the firewall as a defence-in-depth measure.
+
+\noindent\textbf{CVE-2007-2447 --- Samba Username Map Script RCE.}
+Upgrade Samba to 3.0.25 or any current release.  Remove or blank the
+\texttt{username~map~script} smb.conf directive if it is not actively in use.  Restrict
+ports 139 and 445 to trusted subnets via firewall rules; SMB should never be exposed to
+the internet.  Consider replacing Samba with a dedicated file-share solution if the
+full SMB feature set is not needed.
+
+\noindent\textbf{CVE-2012-1823 --- PHP CGI Argument Injection.}
+Upgrade PHP to at minimum 5.3.13 / 5.4.3 (or the currently supported 8.x branch).
+Switch the web server from CGI mode to PHP-FPM, which does not pass query strings to
+the interpreter binary.  As an immediate workaround, add a rewrite rule to strip
+query strings beginning with \texttt{-} from PHP script URIs.
+
+\noindent\textbf{Summary table.}
+
+\small
+\begin{tabularx}{\linewidth}{>{\ttfamily}l >{\raggedright\arraybackslash}X}
+\toprule
+\normalfont CVE & Remediation action \\
+\midrule
+CVE-2011-2523 & Upgrade vsftpd; remove FTP; block port 21 at firewall \\
+CVE-2007-2447 & Upgrade Samba; clear username map script; restrict ports 139/445 \\
+CVE-2012-1823 & Upgrade PHP; switch to PHP-FPM; add rewrite rule \\
+CVE-2008-0166 & Regenerate all SSH keys; audit \texttt{authorized\_keys}; upgrade OpenSSL \\
+CVE-2004-2761 & Reissue TLS certificates with SHA-256; disable MD5 cipher suites \\
+\bottomrule
+\end{tabularx}
+\normalsize
+
+\subsection{Personal Reflection}
+
+The most surprising observation was how many critical vulnerabilities are reachable with
+zero preconditions.  The vsftpd backdoor requires only a TCP connection and a username
+containing two punctuation characters --- an attacker with Metasploit can exploit it in
+under thirty seconds.  This made the CVSS scoring feel very real rather than academic:
+a 9.8 score genuinely means ``compromise is trivially easy from anywhere on the network.''
+
+Comparing the two scan types reinforced a principle from the Week~2 access-control
+discussion: information has value, and generating it has cost.  The SYN scan is faster
+and quieter but tells us only which ports are open.  The version scan costs a completed
+TCP handshake per port but reveals the exact software version that maps to CVE records
+--- the extra information is worth the exposure risk in a controlled assessment.
+
+A limitation I encountered is that OpenVAS produces false positives, particularly for
+outdated banner-version checks: the scanner reads the version string in a service banner
+and matches it against CVE records without verifying whether the patch has been
+back-ported.  I cross-referenced each finding against the NVD entry
+(\url{https://nvd.nist.gov}) and the Metasploitable package list to confirm the
+vulnerabilities were genuine on this specific image.
+
+Regarding defender detectability: a network IDS such as Snort or Suricata would detect
+the SYN scan via a rule matching large numbers of half-open connections to sequential
+ports (RST after SYN-ACK pattern).  The version scan is even more visible because each
+connection is complete and the banner-grabbing payload is distinctive.  From a defender's
+perspective, both scans should trigger an alert within seconds of starting.
+
+Connecting to the broader course arc: the formal models of Week~2 describe what
+\emph{should} be enforced; this week reveals what \emph{actually runs} on a system and
+how easily misconfigurations and unpatched software undermine those formal guarantees.
+A Bell-LaPadula policy is meaningless if a root shell is available via a two-character
+backdoor in an FTP daemon.  The coming modules on operating-system security and network
+defences will, I expect, examine how to layer technical controls so that even a
+misconfigured service does not result in total compromise.
+
+
+%  REFERENCES
+\section*{References}
+
+\begin{enumerate}[label={[\arabic*]}, leftmargin=*, nosep]
+  \item MITRE Corporation. (2024). \textit{ATT\&CK Enterprise Matrix v15}. \url{https://attack.mitre.org}
+  \item MITRE Corporation. (2024). \textit{CVE Programme}. \url{https://www.cve.org}
+  \item FIRST. (2023). \textit{Common Vulnerability Scoring System v3.1 Specification}. \url{https://www.first.org/cvss}
+  \item National Institute of Standards and Technology. (2024). \textit{National Vulnerability Database}. \url{https://nvd.nist.gov}
+  \item Greenbone Networks. (2024). \textit{Greenbone Community Edition / OpenVAS}. \url{https://www.greenbone.net}
+  \item Lyon, G. (2024). \textit{Nmap Network Scanning: The Official Nmap Project Guide}. \url{https://nmap.org/book/}
+  \item Rapid7. (2012). \textit{Metasploitable 2 Exploitability Guide}. \url{https://docs.rapid7.com/metasploit/metasploitable-2-exploitability-guide/}
+  \item SANS Institute. (2024). \textit{TCP/IP and tcpdump}. \url{https://www.sans.org/posters/}
+  \item Microsoft Security. (2002). Shostack, A. \textit{STRIDE Threat Model}. Microsoft Security Engineering.
+  \item OWASP Foundation. (2021). \textit{OWASP Top Ten 2021}. \url{https://owasp.org/Top10/}
+\end{enumerate}
+
+\end{document}
