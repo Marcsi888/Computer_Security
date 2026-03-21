@@ -1,0 +1,261 @@
+% Report Module 6 – Industrial Espionage in Cyberspace
+% CS 475: Introduction to Computer Security
+% Mária Nyolcas
+% March 2026
+
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{setspace}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{parskip}
+\usepackage{titlesec}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage[protrusion=true,expansion=false]{microtype}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage{xcolor}
+
+\setstretch{1.15}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=blue,
+    citecolor=black,
+}
+
+\titleformat{\section}{\large\bfseries}{}{0em}{}[\titlerule]
+\titleformat{\subsection}{\normalsize\bfseries}{}{0em}{}
+
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\small CS 475 – Mária Nyolcas}
+\rhead{\small Week 6: Industrial Espionage in Cyberspace}
+\cfoot{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\begin{document}
+
+\begin{center}
+  {\Large\bfseries Report Module 6}\\[4pt]
+  {\large Industrial Espionage in Cyberspace}\\[6pt]
+  {\normalsize CS 475: Introduction to Computer Security}\\[2pt]
+  {\normalsize Mária Nyolcas \quad|\quad Prof: Asen Nikolov Grozdanov}\\[2pt]
+  {\normalsize March 2026}
+\end{center}
+
+\vspace{4pt}
+\noindent\rule{\linewidth}{0.6pt}
+\vspace{2pt}
+
+\noindent\textbf{Abstract.}
+This report documents a structured OSINT (Open-Source Intelligence) reconnaissance
+investigation of a fictional target organisation, InnovateTech Solutions, alongside an
+analysis of the five-phase AeroTech GmbH espionage lifecycle case study.  The investigation
+demonstrates how publicly available information can be assembled into an actionable threat
+intelligence profile without touching the target's systems.  Defensive countermeasures are
+proposed for each phase, the discussion questions from Section~6 of the module brief are
+answered with reference to the lab evidence, and reflections connect the findings to the
+broader course arc.
+
+
+\section{Introduction}
+
+Industrial espionage --- the covert acquisition of confidential business or technical
+information for competitive advantage --- has shifted almost entirely into cyberspace.
+What once required a bribed insider or a stolen briefcase can now be accomplished remotely,
+at scale, with a level of plausible deniability that physical theft never allowed.  ENISA's
+annual threat landscape consistently ranks cyber-enabled economic espionage among the
+top threats facing European organisations, and the FBI has described it as ``the greatest
+long-term threat to the nation's economy'' \cite{fbi2023}.
+
+For a computer science student, this topic is not abstract.  The systems we design and the
+code we write will one day protect --- or inadvertently expose --- trade secrets, R\&D data,
+and competitive intelligence.  Understanding how adversaries operate, and how little
+information they need to build a dangerous profile, is the first step toward building
+defences that actually work.
+
+This report covers: (i) the methodology and findings of a passive OSINT investigation of
+the fictional target InnovateTech Solutions; (ii) analysis of the AeroTech GmbH composite
+case study across all five attack phases; (iii) defensive recommendations grounded in NIST,
+CIS Controls, and ISO/IEC 27001; and (iv) reflections on how this module connects to
+earlier weeks and the road ahead.
+
+
+\section{Methodology}
+
+The OSINT investigation followed the six-step structure prescribed in the lab exercise.
+All findings relate to the fictional company InnovateTech Solutions
+(\texttt{innovatech-solutions.io}, advanced materials / aerospace R\&D, Munich).
+No real organisation was investigated.  The investigation was entirely passive: no active
+scanning, no network contact with any system.
+
+\subsection{Tools and Sources Used}
+
+\begin{center}
+\small
+\begin{tabular}{lll}
+\toprule
+Step & Tool / Source & Purpose \\
+\midrule
+Passive web recon  & Search engine (advanced operators), WHOIS & Domain, registrar, admin contacts \\
+Legacy content     & Wayback Machine                           & Historical pages, old tech references \\
+Code repositories  & GitHub search                             & Accidentally committed secrets \\
+Patent intelligence & EPO patent database                      & R\&D direction, researcher names \\
+Employee profiling & LinkedIn, ResearchGate                    & Roles, skills, project names \\
+Technical footprint & DNS (\texttt{dig}), crt.sh               & Subdomains, exposed services \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\vspace{4pt}
+\noindent
+All tool interactions were additionally encoded in \texttt{osint\_recon.py}, a structured
+Python script that stores findings as typed dataclasses, making the evidence reproducible
+and queryable --- following the same design philosophy as previous weeks' lab scripts.
+
+
+\section{Findings}
+
+\subsection{Passive Web Reconnaissance}
+
+Five high-value findings emerged from web sources alone.  The most significant was a
+\texttt{config.yml} file pushed to a public GitHub repository (\texttt{innovatech-dev})
+by a junior engineer in November 2022.  It contained the internal subnet
+\texttt{10.50.0.0/16} and the staging hostname \texttt{sim-lab01.internal} --- information
+that would allow an adversary to target internal reconnaissance without any active
+scanning of the external perimeter.
+
+A 2021 Wayback Machine snapshot of the careers page disclosed the VPN product and version
+(\textit{Cisco AnyConnect 4.9}), which is affected by CVE-2021-1247.  Job postings named
+specific ANSYS and GitLab CE versions, directly mapping to CVE lookup targets.
+
+\subsection{Employee and Personnel Profiling}
+
+Four persons of interest were identified.  Dr.~K.~Brenner (Head of Materials Research)
+listed the internal project name \textit{ComposiX-II} in their LinkedIn experience section.
+T.~Okafor (Senior IT Administrator) had contributions to \texttt{innovatech-dev/infra-scripts}
+with a commit referencing a Vault token path.  Dr.~A.~Reyes is a co-inventor on three
+recent patents, with a conference biography naming the active research lab location.
+
+The junior engineer M.~Hofer, whose email is visible in the git log of the leaking commit,
+represents the most accessible initial access target: already demonstrably careless with
+internal data and likely to respond to a convincing spear-phishing pretext.
+
+\subsection{Technical Footprinting}
+
+DNS enumeration revealed that the self-hosted GitLab instance
+(\texttt{gitlab.innovatech-solutions.io}) is directly internet-exposed with no IP
+restriction.  The SPF record uses \texttt{\textasciitilde{}all} (softfail) rather than
+\texttt{-all}, meaning spoofed sender addresses from the \texttt{innovatech-solutions.io}
+domain will reach most mail servers without rejection.  No DMARC record was found.
+Certificate transparency logs (crt.sh) disclosed four subdomains including
+\texttt{sim-lab01} and \texttt{dev-api}, both of which should not be visible in public
+certificate logs.
+
+\subsection{Synthesised Attack Surface Summary}
+
+\small
+\begin{tabularx}{\linewidth}{l >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X}
+\toprule
+Finding & Adversarial value & Remediation \\
+\midrule
+Leaked subnet + hostname (GitHub) & Internal recon without network contact & Secrets scanning pre-commit hook (gitleaks) \\
+No DMARC / SPF softfail           & Spoofed sender phishing at scale      & Add DMARC p=reject; harden SPF to -all \\
+GitLab internet-exposed           & Unauthenticated code access           & Move behind VPN / IP allowlist \\
+VPN version disclosed (Wayback)   & CVE-targeted exploit                  & Remove version strings from public content \\
+Researcher named on patents       & Targeted spear-phishing pretext       & Omit project names from public bios \\
+\bottomrule
+\end{tabularx}
+\normalsize
+
+
+\section{Analysis}
+
+\subsection{AeroTech GmbH Case Study}
+
+The five-phase lifecycle maps cleanly onto the Lockheed Martin Cyber Kill Chain.
+Phase~1 (Reconnaissance) and Phase~2 (Initial Access) follow the same pattern as
+InnovateTech: passive OSINT enabling a highly credible spear-phish.  The critical
+observation is that \textbf{Phase~2 is the single best disruption point} (Discussion
+Question~1).  Once the PDF exploit executes, the attacker has a foothold and every
+subsequent phase compounds the advantage.  Blocking delivery --- through email sandboxing,
+mandatory patching of document viewers, and phishing simulation training --- collapses the
+chain before it starts.  Hardening Phase~3 or~4 is valuable but reactive: the adversary
+is already inside.
+
+\textbf{Least privilege and Phase~3} (Discussion Question~2): the lateral movement
+succeeded because shared service accounts had broad access across network segments.
+If the procurement workstation had been separated from the R\&D file server by a
+firewall requiring explicit authorisation, the attacker would have stalled at the first
+segment boundary.  The blast radius of the initial compromise would have been
+limited to a single low-value host.  This directly echoes the Bell-LaPadula ``no read up''
+principle from Week~2: mandatory, non-discretionary boundaries contain damage even when
+perimeter defences fail.
+
+\textbf{Human behaviour} (Discussion Question~3): no phase was purely technical.
+Phase~1 required a junior engineer to commit secrets; Phase~2 required a researcher to
+open an attachment; Phase~3 depended on administrators sharing accounts for convenience;
+Phase~5 relied on a single analyst reviewing historical logs during a routine audit.
+Technology failed at every step because it was misconfigured or absent --- the root cause
+in each case was a human decision, not an undefeatable technical capability.
+
+\subsection{DLP Policy Requirements}
+
+A DLP policy addressing the risks identified would need three layers.
+\textit{At the endpoint}: block bulk copy of files tagged as R\&D or Confidential to
+removable media or personal cloud storage.
+\textit{At the network boundary}: alert on outbound transfers exceeding a volume threshold
+to cloud storage domains not on an approved list; inspect TLS for anomalous certificate
+chains.
+\textit{At the repository}: pre-receive hooks rejecting commits containing patterns matching
+IP address ranges, hostnames, or secret tokens (gitleaks or truffleHog).
+
+\subsection{Highest Impact-to-Cost Defensive Control}
+
+Across all findings, the single control with the highest impact-to-cost ratio is
+\textbf{secrets scanning in the CI/CD pipeline}.  A pre-commit hook running gitleaks
+costs near zero to deploy, requires no ongoing licensing, and would have prevented the
+most actionable finding in this investigation --- the leaked subnet and hostname --- before
+it ever reached a public repository.  Every other finding derived some portion of its
+value from that one commit.
+
+
+\section*{Conclusion}
+
+This module demonstrated that the most dangerous phase of a cyber espionage campaign
+requires no hacking at all: passive OSINT alone produced five high-value findings against
+a fictional target, including internal network topology, software CVE targets, and direct
+candidate identities for spear-phishing.  The AeroTech case study showed that human
+decisions --- a careless commit, a clicked attachment, a shared account --- created every
+exploitable gap, and that the highest-leverage defensive investment is therefore in
+people and process, not exclusively in technology.
+
+Looking ahead, the coming modules on operating systems security and network defences will
+address how to harden the environment that an attacker enters \textit{after} initial
+access.  Industrial espionage makes clear why those controls matter: an attacker who spends
+four weeks moving laterally undetected has effectively unlimited time to find and extract
+the crown jewels.  The goal of layered defence is to ensure that no single failure ---
+human or technical --- is sufficient to reach them.
+
+
+\section*{References}
+
+\begin{enumerate}[label={[\arabic*]}, leftmargin=*, nosep]
+  \item MITRE Corporation. (2024). \textit{ATT\&CK Enterprise Matrix v15}. \url{https://attack.mitre.org}
+  \item ENISA. (2024). \textit{ENISA Threat Landscape 2024}. \url{https://www.enisa.europa.eu/publications/enisa-threat-landscape}
+  \item National Institute of Standards and Technology. (2018). \textit{Framework for Improving Critical Infrastructure Cybersecurity v1.1}. \url{https://www.nist.gov/cyberframework}
+  \item Lockheed Martin. (2022). \textit{Cyber Kill Chain}. \url{https://www.lockheedmartin.com/en-us/capabilities/cyber/cyber-kill-chain.html}
+  \item Center for Internet Security. (2024). \textit{CIS Controls v8}. \url{https://www.cisecurity.org/controls}
+  \item Council of Europe. (2001). \textit{Budapest Convention on Cybercrime}. \url{https://www.coe.int/en/web/cybercrime/the-budapest-convention}
+  \item European Parliament. (2016). \textit{Directive 2016/943 on the protection of undisclosed know-how and business information (trade secrets)}. \url{https://eur-lex.europa.eu}
+  \item IP Commission. (2017). \textit{The Theft of American Intellectual Property: Reassessments of the Challenge and United States Policy}. \url{https://www.ipcommission.org}
+  \item\label{fbi2023} Federal Bureau of Investigation. (2023). \textit{Economic Espionage}. \url{https://www.fbi.gov/investigate/counterintelligence/economic-espionage}
+  \item SANS Institute. (2024). \textit{Reading Room: Insider Threat and Data Exfiltration}. \url{https://www.sans.org/reading-room/}
+\end{enumerate}
+
+\end{document}
