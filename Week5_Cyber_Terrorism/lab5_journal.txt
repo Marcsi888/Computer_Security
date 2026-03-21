@@ -1,0 +1,102 @@
+=== LAB 5 JOURNAL ===
+Date: 2026-03-19
+Student Name: Mária Nyolcas
+Environment Used: Kali Linux 2024.3 VM + host browser (Firefox, private profile)
+                  Python 3.12 scripts for structured data analysis
+
+--- EXERCISE 1: Threat Actor Mapping ---
+Observations:
+  Sandworm Team (APT44 / Voodoo Bear / IRIDIUM) is attributed to the Russian GRU
+  (Main Centre for Special Technologies, Unit 74455). The group targets energy,
+  government, media, and transportation sectors across Europe and North America,
+  with a clear pattern of destructive intent rather than pure espionage.
+
+  Five techniques selected from the ATT&CK Navigator heat map:
+    T1486  Data Encrypted for Impact         – destruction / ransomware cover
+    T1059.003  Windows Command Shell         – execution via cmd.exe
+    T1078  Valid Accounts                    – credential reuse / living off the land
+    T1071.001  Web Protocols (C2)            – HTTP/S used for command-and-control
+    T1561.002  Disk Structure Wipe           – MBR/partition overwrite (Industroyer2)
+
+  Lazarus Group (APT38 / Hidden Cobra) – attributed to North Korea DPRK RGB:
+    Three overlapping techniques with Sandworm:
+    T1486  Data Encrypted for Impact         – both use destructive payloads
+    T1078  Valid Accounts                    – both abuse stolen credentials
+    T1071  Application Layer Protocol (C2)   – both use standard web protocols for C2
+
+  Overlap analysis:
+    The shared use of T1486, T1078, and T1071 makes automated attribution
+    difficult: these are common, well-documented techniques available to any
+    sophisticated actor. The divergence lies in targeting (Sandworm: critical
+    infrastructure / ICS; Lazarus: financial institutions / cryptocurrency) and
+    in secondary tools (Sandworm: Industroyer/Sandworm wiper; Lazarus: ELECTRICFISH,
+    FASTCash). Shared TTPs do not imply shared origin – they reflect shared
+    knowledge of what works against modern defences.
+
+Tools Used: MITRE ATT&CK web navigator (https://attack.mitre.org),
+            threat_actor_mapping.py (local Python script parsing STIX-like data)
+Findings: See threat_actor_mapping.py output. Five Sandworm techniques documented,
+          three compared against Lazarus Group, attribution challenge discussed.
+
+--- EXERCISE 2: Disinformation Analysis ---
+Sample Case Analysed: Operation Secondary Infektion
+  Primary source: Stanford Internet Observatory / EU DisinfoLab joint report (2020)
+  https://secondaryinfektion.org
+
+Indicators Found (5-indicator red-flag table):
+  1. Coordinated inauthentic accounts posting identical content within minutes
+  2. Newly registered domains mimicking legitimate news outlets (typosquatting)
+  3. Forged documents attributed to real officials (detectable via metadata)
+  4. Cross-platform amplification: content seeded on fringe forums, then cited by
+     larger accounts as if independently discovered
+  5. Linguistic patterns inconsistent with claimed author nationality
+     (machine-translated syntax errors, unusual idiom choices)
+
+OSINT Tool Used: WHOIS / DNS lookup via lookup.icann.org
+  Query: one domain cited in the Secondary Infektion report
+  Output: registration date post-dated the event being "reported", registrant
+          privacy-shielded through a reseller in a jurisdiction with no WHOIS
+          transparency requirements. This is consistent with infrastructure
+          set up specifically for the operation rather than a long-standing outlet.
+  Limitations: WHOIS data alone cannot prove intent; domain registration timing
+               is a red flag, not proof. Full attribution requires corroborating
+               network traffic, hosting pattern analysis, and content fingerprinting.
+
+Assessment: Operation Secondary Infektion ran from at least 2014 to 2020, planted
+  forged documents across 300+ platforms in 7 languages, and targeted audiences
+  in Ukraine, Germany, France, Spain, and the UK. The desired cognitive effect was
+  distrust of Western governments and NATO. The operation was eventually exposed
+  because the same document templates, linguistic fingerprints, and infrastructure
+  patterns appeared repeatedly – exactly the indicators in the table above.
+
+--- EXERCISE 3: Attack Scenario Design ---
+Chosen Target Sector: Hospital / emergency medical services network
+Threat Actor Profile: Group "Iron Caduceus"
+  Type: Nation-state APT
+  Motivation: Political coercion – pressure a government during treaty negotiations
+  Capability: Advanced
+  Resources: State-level
+
+Attack Chain Described: 7-step chain using Lockheed Martin Cyber Kill Chain
+  See attack_scenario.py for full structured output.
+
+Defensive Countermeasures:
+  Each step has a paired countermeasure – see attack_scenario.py output.
+  Single weakest link: Step 2 (spear-phishing delivery) – the earliest point
+  where human behaviour is the deciding factor. A well-trained staff member
+  who reports the email breaks the chain before any code executes.
+
+--- REFLECTION NOTES ---
+Most surprising finding:
+  The breadth of Operation Secondary Infektion – 300+ platforms, 7 languages,
+  6 years of operation – makes it clear that information warfare is not a
+  temporary tactic but a sustained, resource-intensive strategic capability.
+  The fact that it was eventually exposed through technical fingerprinting
+  (document metadata, linguistic patterns) rather than human intelligence
+  suggests that OSINT analysis is a genuinely effective defensive tool.
+
+Question I still have:
+  How do platforms decide at what confidence threshold to take down coordinated
+  inauthentic behaviour networks? The trade-off between false positives
+  (removing legitimate speech) and false negatives (leaving operations running)
+  is not well documented publicly.

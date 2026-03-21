@@ -1,0 +1,330 @@
+% Report Module 5 – Cyber Terrorism and Information Warfare
+% CS 475: Introduction to Computer Security
+% Mária Nyolcas
+% March 19th 2026
+
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{setspace}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{parskip}
+\usepackage{titlesec}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage[protrusion=true,expansion=false]{microtype}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage{xcolor}
+
+\setstretch{1.15}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=blue,
+    citecolor=black,
+}
+
+\titleformat{\section}{\large\bfseries}{}{0em}{}[\titlerule]
+\titleformat{\subsection}{\normalsize\bfseries}{}{0em}{}
+
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\small CS 475 – Mária Nyolcas}
+\rhead{\small Week 5: Cyber Terrorism \& Information Warfare}
+\cfoot{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\begin{document}
+
+\begin{center}
+  {\Large\bfseries Report Module 5}\\[4pt]
+  {\large Cyber Terrorism and Information Warfare}\\[6pt]
+  {\normalsize CS 475: Introduction to Computer Security}\\[2pt]
+  {\normalsize Mária Nyolcas \quad|\quad Prof: Asen Nikolov Grozdanov}\\[2pt]
+  {\normalsize March 2026}
+\end{center}
+
+\vspace{4pt}
+\noindent\rule{\linewidth}{0.6pt}
+\vspace{2pt}
+
+\noindent\textbf{Abstract.}
+This report examines cyber terrorism and information warfare as distinct but
+overlapping threat categories, combining theoretical analysis with three practical
+exercises: threat actor mapping using MITRE ATT\&CK, an anatomy of a documented
+disinformation campaign (Operation Secondary Infektion), and the design of a
+fictional attack scenario against a hospital network with paired countermeasures.
+The report connects these topics to vulnerability and scanning work from Week~4
+and ends with a forward link to industrial espionage.
+
+
+\section{Introduction}
+
+Cyber terrorism and information warfare are two of the most debated concepts in
+contemporary security. The confusion is partly terminological: the word
+``terrorism'' carries legal and political weight that shapes how incidents are
+classified, investigated, and attributed. A working definition that cuts through
+the noise comes from RAND Corporation: cyber terrorism consists of
+``premeditated, politically motivated attacks against information, computer
+systems, computer programs, and data which result in violence against
+non-combatant targets by sub-national groups or clandestine agents.'' The key
+ingredients are intent (political), target (civilian or non-combatant
+infrastructure), and effect (fear, coercion, or physical disruption through
+digital means).
+
+This distinguishes cyber terrorism from two closely related categories.
+\textbf{Cybercrime} is financially motivated: ransomware gangs, payment card
+fraud, and cryptocurrency theft are canonical examples. \textbf{Hacktivism} is
+ideologically motivated but typically non-violent: website defacement and
+DDoS protests are disruptive but rarely cause lasting physical harm. The
+boundary between the three is blurry in practice --- a ransomware attack on a
+hospital may simultaneously constitute cybercrime (extortion), potential
+terrorism (endangering patients), and, if state-sponsored, an act of warfare.
+
+\textbf{Information Warfare (IW)} predates the internet by centuries; propaganda
+leaflets dropped from aircraft in WWI are textbook examples. What digital
+networks changed is scale, speed, and deniability. Modern IW doctrine covers six
+sub-domains: psychological operations (PSYOP), electronic warfare, cyber
+operations, deception, OSINT exploitation, and censorship or narrative control.
+This module sits at the intersection of all six, making it the most cross-cutting
+topic in the course so far.
+
+For a computer science student, the relevance is concrete: the same scanning
+and exploitation techniques studied in Week~4 (Nmap, OpenVAS, CVE analysis)
+are the operational foundation for the cyber operations sub-domain of IW. The
+distinction is motivation and scale, not method.
+
+
+\section{Theoretical Framework}
+
+\subsection{Actor Taxonomy}
+
+Understanding who conducts cyber terrorism and IW is as important as understanding
+the technical methods, because the actor type determines capability, persistence,
+and the likelihood of attribution. Four categories matter for threat modelling:
+
+\begin{itemize}[nosep]
+  \item \textbf{Nation-state APTs} operate with virtually unlimited resources,
+        long planning horizons, and geopolitical objectives. MITRE ATT\&CK documents
+        dozens of these groups with their full TTP profiles.
+  \item \textbf{Non-state terrorist organisations} increasingly use cyber
+        capabilities for recruitment, propaganda distribution, and cryptocurrency
+        fundraising --- less often for direct disruption.
+  \item \textbf{Hacktivist collectives} are loosely organised and ideologically
+        driven; their campaigns often blur into IW territory when they amplify
+        disinformation alongside DDoS attacks.
+  \item \textbf{Insider threats} are relevant because, as Week~2's access-control
+        analysis showed, overly permissive role assignments create the conditions
+        that insiders (and APTs using stolen credentials) exploit.
+\end{itemize}
+
+\subsection{Landmark Case Studies}
+
+\textbf{Estonia 2007.} A wave of DDoS attacks paralysed Estonian government,
+banking, and media websites following a political dispute with Russia over the
+relocation of a Soviet-era war memorial. This is the first large-scale cyber
+attack against a nation-state's digital infrastructure and directly accelerated
+the creation of NATO CCDCOE in Tallinn. The key takeaway is that even
+technically unsophisticated attacks (volumetric DDoS) can cause strategic-level
+disruption if the target lacks redundancy and has not planned for the scenario.
+
+\textbf{NotPetya (2017).} Initially disguised as ransomware, NotPetya was a
+wiper --- malware designed to permanently destroy data with no recovery
+mechanism. Attributed to the Sandworm APT group (Russian GRU Unit 74455), it
+caused an estimated \$10 billion in global damages by spreading through a
+compromised Ukrainian accounting software update (supply-chain initial access),
+then destroying backups and MBRs across hundreds of organisations worldwide.
+The takeaway here is that a cyber weapon can cause catastrophic collateral
+damage well beyond its intended geographic or organisational target: Maersk,
+Merck, and FedEx were all affected despite not being the primary political target.
+The CVSS~9.8 vulnerabilities studied in Week~4 (particularly the notion of
+network-reachable, no-preconditions exploits) map directly to how NotPetya spread
+laterally once inside a network perimeter.
+
+
+\section{Lab Findings}
+
+\subsection{Exercise 1: MITRE ATT\&CK Threat Actor Mapping}
+
+Using the ATT\&CK Navigator, I built heat-map layers for Sandworm Team (APT44,
+attributed to Russian GRU Unit 74455) and Lazarus Group (APT38, attributed to
+North Korea's RGB). The structured data is encoded in \texttt{threat\_actor\_mapping.py}.
+
+\vspace{4pt}
+\noindent\textbf{Five Sandworm techniques selected:}
+
+\small
+\begin{tabularx}{\linewidth}{>{\ttfamily}l l >{\raggedright\arraybackslash}X}
+\toprule
+\normalfont ID & Tactic & Technique / observation \\
+\midrule
+T1486     & Impact (TA0040)             & Data Encrypted for Impact --- NotPetya/BadRabbit: encryption is cover for destruction, no recovery key exists \\
+T1059.003 & Execution (TA0002)          & Windows Command Shell --- cmd.exe used to stage wipers and disable AV \\
+T1078     & Defence Evasion (TA0005)    & Valid Accounts --- stolen credentials used for lateral movement, blends with normal traffic \\
+T1071.001 & C2 (TA0011)                 & Web Protocols --- HTTPS C2 blends with legitimate browsing, hard to block without breaking access \\
+T1561.002 & Impact (TA0040)             & Disk Structure Wipe --- Industroyer2 overwrites MBR; recovery requires full reinstall \\
+\bottomrule
+\end{tabularx}
+\normalsize
+
+\vspace{6pt}
+\noindent\textbf{Comparison with Lazarus Group (3 overlapping techniques):}
+Both groups use T1486 (wiper/ransomware), T1078 (valid accounts), and T1071
+(application layer C2). This overlap is instructive rather than diagnostic: these
+are among the most effective and widely documented techniques in ATT\&CK. Shared
+TTPs do not imply shared origin. Attribution requires corroborating evidence:
+infrastructure reuse, malware code similarity, timing patterns relative to
+geopolitical events, and HUMINT. The overlap illustrates why attribution is
+genuinely difficult and why confident public attribution is rare.
+
+\subsection{Exercise 2: Disinformation Analysis}
+
+I analysed Operation Secondary Infektion using the Stanford Internet Observatory /
+EU DisinfoLab joint report as my primary source. The operation ran from at least
+2014 to 2020, planted forged documents across 300+ platforms in 7 languages, and
+targeted audiences in Ukraine, Germany, France, Spain, and the UK.
+
+\noindent\textbf{Campaign anatomy:} Fabricated content included forged EU and NATO
+official documents, fake news articles mimicking established outlets, and
+manipulated images. Laundering occurred through newly registered typosquatting
+domains. Amplification relied on coordinated cross-posting and circular citation
+between fake sites to create an illusion of independent corroboration.
+
+\noindent\textbf{OSINT tool applied:} WHOIS/DNS lookup (lookup.icann.org) on a
+domain cited in the report. Key findings: (i) registration date preceded first
+article by two weeks only, consistent with purpose-built infrastructure;
+(ii) name server shared with two other fake outlets identified in the same
+investigation --- the single most useful finding, linking three ``independent''
+sites to the same actor. Limitation: WHOIS alone cannot prove intent;
+privacy-shielded registration is legal and common.
+
+\noindent\textbf{Red-flag indicator table (6 indicators):}
+
+\small
+\begin{tabularx}{\linewidth}{r >{\raggedright}p{3.8cm} >{\raggedright\arraybackslash}X l}
+\toprule
+\# & Indicator & How to check & Confidence \\
+\midrule
+1 & Coordinated posting timing & Botometer; cross-platform timestamp comparison & High \\
+2 & Domain registration anomaly & WHOIS lookup; compare reg. date vs. first article & High \\
+3 & Document metadata mismatch & exiftool / PDF properties; compare software locale & High \\
+4 & Cross-platform self-citation loop & archive.org; trace content to single origin & Medium \\
+5 & Linguistic inconsistency & Back-translation; native speaker review & Medium \\
+6 & Infrastructure clustering & Reverse-IP lookup; certificate transparency logs & High \\
+\bottomrule
+\end{tabularx}
+\normalsize
+
+\subsection{Exercise 3: Attack Scenario and Countermeasures}
+
+\noindent\textbf{Target:} Hospital / emergency medical services network.
+\noindent\textbf{Actor:} Iron Caduceus (fictional nation-state APT, advanced,
+state-level resources, politically motivated coercion).
+
+The 7-step chain below maps to the Lockheed Martin Cyber Kill Chain. Full
+structured output is in \texttt{attack\_scenario.py}.
+
+\small
+\begin{tabularx}{\linewidth}{r >{\raggedright}p{2.4cm} >{\raggedright}p{3.8cm} >{\raggedright\arraybackslash}X}
+\toprule
+Step & Stage & Attacker action & Countermeasure \\
+\midrule
+1 & Reconnaissance  & Passive OSINT: LinkedIn, job posts, conference slides & OSINT audit of own public footprint; social media policy \\
+2* & Weaponisation   & Spear-phish impersonating EHR vendor; macro dropper & Disable macros by GPO; email sandboxing \\
+3 & Delivery        & Email to IT admins and procurement; timed Monday AM & Phishing simulation; DMARC/DKIM/SPF \\
+4 & Exploitation    & Macro spawns PowerShell; in-memory LOTL execution & EDR monitoring process lineage; PS script-block logging \\
+5 & Installation    & Scheduled task + registry Run key; internal recon & SIEM alerts on task creation; network segmentation \\
+6 & C\&C            & HTTPS C2, domain fronting, randomised beacon interval & TLS inspection; DNS threat intelligence feeds \\
+7 & Actions         & Lateral movement to EHR; wiper destroys records and backups & Offline immutable backups (3-2-1); PAW for EHR admin \\
+\bottomrule
+\end{tabularx}
+\normalsize
+
+\vspace{4pt}
+\noindent*\,\textbf{Weakest link: Step~2 (Weaponisation/Delivery).} A staff member
+who recognises the phishing email and reports it before opening the attachment
+breaks the entire chain before any code executes. At every subsequent step the
+attacker already has a foothold, making defence progressively more expensive.
+Investment in training and email filtering at this stage has the highest
+defensive return on investment.
+
+
+\section{Reflection and Critical Analysis}
+
+Studying cybercrime --- as we did implicitly in Week~4 through CVE analysis ---
+focuses on technical vulnerabilities: a specific version of vsftpd has a known
+backdoor, and the fix is to update it. The exploitation is impersonal and largely
+automated. Cyber terrorism and information warfare are different in a way that
+matters for how a computer scientist thinks about defence.
+
+The technical underpinning is often identical. NotPetya's lateral spread used
+EternalBlue, the same SMB exploit class as the CVE-2007-2447 Samba vulnerability
+examined in Week~4; the CVSS vector (network-reachable, no credentials required)
+is the same category of risk. What changes is the adversary model: a ransomware
+gang will stop if the victim pays or if the exploit is patched. An APT acting
+on political orders does not stop. It adapts, waits, and comes back through a
+different vector. This fundamentally changes the defensive posture required:
+patching is still necessary, but it is not sufficient when the adversary has
+the patience and resources to find the next unpatched system.
+
+The disinformation exercise reinforced a different angle: the most effective
+information operations are not technically sophisticated. Operation Secondary
+Infektion did not require any CVEs. It required patience, language skills, and
+an understanding of how human trust in media works. The OSINT indicators I
+documented (metadata, registration timing, shared infrastructure) are technically
+checkable by any analyst --- the defence against information warfare is partly
+technical and partly a matter of critical reading skills that have nothing to
+do with network security.
+
+The weakest link in the hospital scenario (spear-phishing) connects directly
+to the Principle of Least Privilege discussion in Week~2: the reason spear-phishing
+is so effective against high-privilege accounts is precisely because those accounts
+have been granted rights that far exceed daily task requirements. Tightening
+access reduces the blast radius when the phish succeeds.
+
+Looking ahead, information warfare intersects with industrial espionage in a
+specific way: state-sponsored actors conducting IW campaigns often simultaneously
+collect intellectual property and trade secrets from the same targets, using the
+same infrastructure --- the two objectives are pursued in a single operation.
+
+
+\section*{References}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{4pt}
+
+\hangindent=1.27cm
+Center for Internet Security. (2024). \textit{CIS Controls v8}. \url{https://www.cisecurity.org/controls}
+
+\hangindent=1.27cm
+Cybersecurity and Infrastructure Security Agency [CISA]. (2022). \textit{Alert AA22-057A: Destructive malware targeting organizations in Ukraine}. \url{https://www.cisa.gov/news-events/cybersecurity-advisories/aa22-057a}
+
+\hangindent=1.27cm
+European Union Agency for Cybersecurity [ENISA]. (2023). \textit{ENISA threat landscape 2023}. \url{https://www.enisa.europa.eu/topics/cyberthreats/enisa-threat-landscape}
+
+\hangindent=1.27cm
+Greenberg, A. (2019). \textit{Sandworm: A new era of cyberwar and the hunt for the Kremlin's most dangerous hackers}. Doubleday.
+
+\hangindent=1.27cm
+Lockheed Martin. (2022). \textit{Cyber kill chain}. \url{https://www.lockheedmartin.com/en-us/capabilities/cyber/cyber-kill-chain.html}
+
+\hangindent=1.27cm
+MITRE Corporation. (2024). \textit{ATT\&CK enterprise matrix v15}. \url{https://attack.mitre.org}
+
+\hangindent=1.27cm
+National Institute of Standards and Technology [NIST]. (2018). \textit{Framework for improving critical infrastructure cybersecurity} (Version 1.1). \url{https://www.nist.gov/cyberframework}
+
+\hangindent=1.27cm
+NATO Cooperative Cyber Defence Centre of Excellence [CCDCOE]. (2023). \textit{Tallinn manual 2.0 on the international law applicable to cyber operations}. \url{https://ccdcoe.org/research/tallinn-manual/}
+
+\hangindent=1.27cm
+Rid, T. (2020). \textit{Active measures: The secret history of disinformation and political warfare}. Farrar, Straus and Giroux.
+
+\hangindent=1.27cm
+Stanford Internet Observatory \& EU DisinfoLab. (2020). \textit{Secondary infektion: A large-scale cross-platform influence operation}. \url{https://secondaryinfektion.org}
+
+\end{document}
