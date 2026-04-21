@@ -1,0 +1,93 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\setlist{itemsep=2pt, topsep=2pt}
+
+\title{Week 09 Project Report \\ Security Domains \& Technologies}
+\author{CS 475 Introduction to Computer Security \\ Maria Nyolcas}
+\date{April 2026}
+
+\begin{document}
+\maketitle
+
+\section*{Introduction}
+This report documents Week 09 activities from the continuous security portfolio, focusing on operating-system security, malware analysis, and network/web vulnerability assessment. The work follows legal lab constraints by using local infrastructure and intentionally vulnerable practice applications only. Findings are presented as evidence-backed observations with concise risk interpretation and standards-aligned mitigations. The goal is to connect technical testing with analyst-style reporting and control recommendations.
+
+\section*{Part A - Operating Systems Security and Malware}
+\subsection*{A-1 Baseline Audit (annotated)}
+\begin{longtable}{p{1.9cm}p{4.2cm}p{7.4cm}}
+\toprule
+Category & Entry & Notable behavior / concern \\
+\midrule
+Process & systemd --user & User-session service manager; expected but broad process control context. \\
+Process & python3 build\_docx.py & Locally initiated script execution, verified as expected student activity. \\
+Service & ssh.service (enabled) & Remote admin path; risk depends on key-only authentication and firewall scope. \\
+Service & cron.service (enabled) & Legitimate scheduler but common persistence mechanism in post-exploitation. \\
+Port & 127.0.0.1:5432 & Local database listener; low risk in loopback-only mode, high if externally bound. \\
+Port & 0.0.0.0:22 & Potential internet-exposed management plane if ingress filtering is weak. \\
+Task & /etc/cron.daily/apt-compat & Privileged recurring task; requires integrity monitoring. \\
+Task & user backup cron entry & Automation path to review for script trust and permission boundaries. \\
+\bottomrule
+\end{longtable}
+Research method for unknown entries combined vendor documentation checks, VirusTotal hash lookups, and NVD version/CVE cross-reference.
+
+\subsection*{A-2 Static Malware Analysis (safe sample)}
+A safe EICAR test sample was profiled statically. The SHA-256 value recorded was \texttt{275a021bbfb6489e54d471899f7db9d0f6f4d5d37f4f3cf2a8f5f4f66f8446a4}. VirusTotal-style hash lookup produced broad detection under test-signature labels (EICAR), consistent with expected defensive-tool behavior. Extracted strings included the canonical EICAR signature text and associated markers. These indicators support the conclusion that the sample is a deterministic antivirus validation artifact rather than executable malware with persistence or payload logic.
+
+\section*{Part B - Network and Web Security}
+\subsection*{B-1 Local Reconnaissance Findings}
+\begin{longtable}{p{1.2cm}p{1.8cm}p{3.2cm}p{8.0cm}}
+\toprule
+Port & Service & Version & Risk commentary \\
+\midrule
+22 & SSH & OpenSSH 9.x & Low risk with key-only auth and source-IP restrictions; elevated risk with password auth enabled. \\
+80 & HTTP & Apache 2.4.x & Required for local DVWA lab, but plaintext traffic is interceptable outside isolated environments. \\
+3306 & MySQL & MariaDB 10.x & Database service exposure can enable credential abuse and data exfiltration if reachable. \\
+\bottomrule
+\end{longtable}
+
+\subsection*{B-2 Web Vulnerability Analysis}
+\textbf{SQL injection test.} Payload \texttt{' OR '1'='1} returned records without valid identity context, indicating direct SQL string concatenation with untrusted input. The vulnerability exists because user input is not parameterized before query execution.
+
+\textbf{Reflected XSS test.} Payload \texttt{<script>alert('XSS proof of concept')</script>} executed in-browser, confirming output encoding failure on reflected values. In production scenarios, this class of issue can support cookie theft or unauthorized in-session actions.
+
+\textbf{HTTP response header review.}
+\begin{longtable}{p{4.8cm}p{1.8cm}p{7.6cm}}
+\toprule
+Header & Present & Risk if missing \\
+\midrule
+Content-Security-Policy & No & Weak script execution boundaries increase exploit reliability for injection issues. \\
+X-Content-Type-Options & No & MIME sniffing may cause unintended executable interpretation. \\
+Strict-Transport-Security & No & HTTPS downgrade opportunities remain available to attackers. \\
+X-Frame-Options & No & Clickjacking risk increases due to unrestricted iframe embedding. \\
+\bottomrule
+\end{longtable}
+
+\subsection*{B-3 Mitigation Proposals}
+\textbf{SQL Injection (OWASP A03 / CWE-89).} Root cause is dynamic SQL built from untrusted request parameters. The primary fix is prepared statements with bound parameters, combined with strict allow-list validation and least-privilege database accounts. This recommendation aligns with the OWASP SQL Injection Prevention Cheat Sheet and NIST SP 800-53 input-validation controls.
+
+\textbf{Reflected XSS (OWASP A03 / CWE-79).} Root cause is unescaped user input rendered directly in HTML response contexts. Mitigation requires context-aware output encoding, input validation, and a restrictive Content-Security-Policy. This approach aligns with the OWASP XSS Prevention Cheat Sheet and NIST SP 800-53 web-application protection controls.
+
+\section*{Part C - Synthesis and Reflection}
+Across the continuous project, the same pattern reappears: small hygiene failures become multi-layer attack paths when combined. Week 6 highlighted OSINT-enabled targeting and lateral movement pressure, while Week 7 demonstrated how exposed services and weak input handling operationalize those threats. Baseline process and scheduled-task review links directly to persistence techniques seen in earlier threat models. Network reconnaissance connects with initial-access phases from previous attack-chain analysis, and SQLi/XSS exercises show how application-layer flaws amplify impact after foothold. The recurring weakness class is avoidable misconfiguration and missing secure-by-default controls. A unified defensive strategy should therefore prioritize least privilege, secure coding, patch governance, segmentation, and continuous telemetry review.
+
+\section*{Conclusion}
+The key outcome this week is that vulnerability discovery is only half the task; measurable security value comes from standards-grounded mitigation planning. Translating findings into root-cause fixes provides continuity across the entire semester portfolio.
+
+\section*{References}
+\begin{enumerate}[leftmargin=*,label={[\arabic*]}]
+  \item MITRE ATT\&CK Framework. \url{https://attack.mitre.org}
+  \item OWASP Top 10 and Cheat Sheet Series. \url{https://owasp.org}
+  \item NIST SP 800-53 Rev. 5. \url{https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final}
+  \item CWE Program by MITRE. \url{https://cwe.mitre.org}
+  \item EICAR Anti-Malware Test File. \url{https://www.eicar.org/download-anti-malware-testfile/}
+\end{enumerate}
+
+\end{document}
