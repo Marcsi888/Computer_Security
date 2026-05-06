@@ -1,23 +1,25 @@
 {
   "latex-workshop.latex.tools": [
     {
-      "name": "pdflatex",
-      "command": "pdflatex",
+      "name": "wsl-pdflatex",
+      "command": "wsl",
       "args": [
-        "-synctex=1",
-        "-interaction=nonstopmode",
-        "-file-line-error",
-        "%DOC%"
+        "-d",
+        "Ubuntu-24.04",
+        "--",
+        "bash",
+        "-lc",
+        "cd '/mnt/c/Users/asus/OneDrive/CS475/Computer_Security/Week11_Security_Software' && pdflatex -synctex=1 -interaction=nonstopmode -file-line-error report_week11.tex"
       ]
     }
   ],
   "latex-workshop.latex.recipes": [
     {
-      "name": "pdflatex",
+      "name": "wsl-pdflatex",
       "tools": [
-        "pdflatex"
+        "wsl-pdflatex"
       ]
     }
   ],
-  "latex-workshop.latex.recipe.default": "pdflatex"
+  "latex-workshop.latex.recipe.default": "wsl-pdflatex"
 }
