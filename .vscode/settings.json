@@ -9,7 +9,7 @@
         "--",
         "bash",
         "-lc",
-        "cd '/mnt/c/Users/asus/OneDrive/CS475/Computer_Security/Week11_Security_Software' && pdflatex -synctex=1 -interaction=nonstopmode -file-line-error report_week11.tex"
+        "cd \"$(wslpath '%DIR%')\" && pdflatex -synctex=1 -interaction=nonstopmode -file-line-error '%DOCFILE%'"
       ]
     }
   ],

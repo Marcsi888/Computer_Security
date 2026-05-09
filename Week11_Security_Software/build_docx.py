@@ -2,7 +2,10 @@
 # Run once: python build_docx.py
 # Output:   report_week11.docx
 
+import os
 from docx import Document
+
+_HERE = os.path.dirname(os.path.abspath(__file__))
 from docx.shared import Pt, Cm, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_TABLE_ALIGNMENT
@@ -453,5 +456,5 @@ add_para(
 # SAVE
 # ---------------------------------------------------------------------------
 
-doc.save("report_week11.docx")
+doc.save(os.path.join(_HERE, "report_week11.docx"))
 print("report_week11.docx written successfully.")
