@@ -22,6 +22,8 @@ This installment covers Part IV of the continuous project, focused on emerging t
 
 From a security-engineering perspective, the objective was not only to define concepts but to test concrete security properties under controlled failure conditions. The lab therefore emphasized one measurable question: when state is altered after mining, does validation fail for the expected cryptographic reason and at the expected position in the chain. This report documents both the expected behavior and its limitations.
 
+My own takeaway from this part of the project was that blockchain is easy to describe in slogan form, but much harder to trust in practice once you look at keys, wallets, contracts, and external data feeds. That made the lab more useful than a purely theoretical summary because it showed where the security story is strong and where it still falls apart.
+
 \section*{Part A - Theory and Guided Research}
 
 \subsection*{A-1 What a blockchain is and what problem it solves}
@@ -75,6 +77,8 @@ The first non-genesis block was tampered by modifying a transaction amount after
 
 Observed behavior matched expectation: the earliest failing point was the modified block itself, where recomputation no longer matched the stored hash. No ambiguity was observed in the validator output, which is useful for incident triage because the failure location identifies whether corruption started in block content or in chain linkage.
 
+What stood out to me here was how clean the failure signal was. The chain did not just become "bad" in a vague sense; it failed for a specific, inspectable reason, which is exactly the kind of behavior I would want from a security control when something has been tampered with.
+
 \subsection*{B-3 Repair attempt and security interpretation}
 An attacker simulation re-mined only the tampered block. Validation still failed because downstream blocks retained stale \texttt{previous\_hash} values. The practical lesson is that successful history rewriting requires re-mining all subsequent blocks and overtaking honest participants, which raises attack cost significantly in real networks.
 
@@ -97,6 +101,8 @@ Supply-chain JS compromise & Payment skimming (Magecart style) & CSP, Subresourc
 \section*{Part C - Critical Reflection and Syllabus Tie-in}
 This installment connects directly to earlier course topics.
 
+Across the course, I kept noticing the same pattern: the technology changes, but the security questions stay familiar. We still ask who is trusted, what can be forged, what can be recovered, and what happens when the attacker already has partial control.
+
 \textbf{Authentication protocols and key management.}
 Blockchain ownership is identity by private key control. This resembles authentication but without central reset. Key theft therefore has immediate asset impact and weak recovery options.
 
@@ -116,7 +122,11 @@ Classical centralized policy models assume a trusted administrator can revoke, p
 
 In policy terms, organizations adopting blockchain components should predefine incident playbooks for key compromise, contract pause criteria, governance voting thresholds, and legal/operational ownership boundaries. Without this preparation, technical decentralization can become operational ambiguity.
 
+If I were deploying this in a real environment, I would treat the governance and recovery plan as part of the security design, not as an afterthought. That is the difference between a system that is merely decentralized and one that is actually manageable under stress.
+
 \section*{Conclusion}
 Blockchain solves a specific trust problem: shared state integrity without a single operator. It does not remove security engineering responsibilities. DApps inherit blockchain strengths but also expose new failure modes where code immutability and ecosystem complexity increase remediation cost. For e-commerce, decentralized payment paths do not replace core controls such as strong authentication, anti-fraud analytics, secure session management, and dependency governance. The practical lab confirms the underlying principle: tampering is detectable by construction, but total security still depends on the surrounding system.
+
+Overall, this was the part of the project where the security tradeoffs felt most concrete to me. The system can be elegant on paper and still be fragile in the places users actually touch, which is why I think the practical lab mattered more than just writing down definitions.
 
 \end{document}
